@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OmniTrack - Public Clock</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>OmniTrack</h1>
+    <p class="muted">Employee Clock In / Out</p>
+
+    <label for="employeeCode">Enter 5-digit Employee ID</label>
+    <input id="employeeCode" maxlength="5" inputmode="numeric" placeholder="e.g. 12345" />
+
+    <button id="verifyBtn">Verify</button>
+
+    <div id="employeeInfo" class="hidden"></div>
+    <button id="actionBtn" class="hidden"></button>
+
+    <div id="msg" class="msg"></div>
+
+    <hr />
+
+    <details>
+      <summary>Admin (temporary): Manage Employees</summary>
+      <div class="admin">
+        <h3 style="margin:10px 0 6px;">Create Employee</h3>
+        <input id="newEmpName" placeholder="Full name" />
+        <button id="createEmpBtn">Create</button>
+        <div id="createdEmp" class="muted"></div>
+
+        <h3 style="margin:14px 0 6px;">Activate / Deactivate</h3>
+        <input id="statusEmpCode" maxlength="5" inputmode="numeric" placeholder="Employee ID (5 digits)" />
+        <select id="statusValue" style="width:100%;padding:10px;margin-top:6px;border:1px solid #ddd;border-radius:10px;">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+        <button id="setStatusBtn">Update Status</button>
+        <div id="statusMsg" class="muted"></div>
+      </div>
+    </details>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+

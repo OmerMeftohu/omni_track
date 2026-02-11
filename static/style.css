@@ -1,0 +1,46 @@
+@'
+body {
+  font-family: Arial, sans-serif;
+  background: #f6f7fb;
+  margin: 0;
+  padding: 24px;
+}
+.card {
+  max-width: 420px;
+  margin: 0 auto;
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+}
+h1 { margin: 0; }
+.muted { color: #666; margin-top: 6px; }
+label { display: block; margin-top: 14px; font-weight: 600; }
+input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+#verifyBtn { background: #111; color: white; }
+#actionBtn { background: #2563eb; color: white; }
+.hidden { display: none; }
+.msg { margin-top: 12px; min-height: 20px; }
+.msg.ok { color: #0a7a2f; }
+.msg.err { color: #b00020; }
+.admin { margin-top: 10px; }
+details { margin-top: 14px; }
+hr { margin: 18px 0; border: 0; border-top: 1px solid #eee; }
+'@ | Set-Content -Path .\static\style.css

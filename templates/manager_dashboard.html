@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Manager Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+  <main class="card">
+    <h1>Manager Dashboard</h1>
+    <p class="muted">Company overview</p>
+
+    <hr />
+
+    <h3>Manager To-Do List (Create)</h3>
+
+    <label>Scope</label>
+    <select id="todoScope" style="width:100%;padding:10px;margin-top:6px;border:1px solid #ddd;border-radius:10px;">
+      <option value="DAILY">DAILY</option>
+      <option value="WEEKLY">WEEKLY</option>
+      <option value="MONTHLY">MONTHLY</option>
+    </select>
+
+    <label>Title</label>
+    <input id="todoTitle" placeholder="e.g. Follow up with top 20 leads" />
+
+    <label>Details (optional)</label>
+    <input id="todoDetails" placeholder="More info..." />
+
+    <label>Due Date (optional)</label>
+    <input id="todoDue" type="date" />
+
+    <button id="createTodoBtn">Create To-Do</button>
+    <div id="todoMsg" class="muted"></div>
+
+    <hr />
+    <hr />
+   <h3>KPI Dashboard (Today)</h3>
+   <button id="refreshKpisBtn">Refresh KPIs</button>
+
+   <div id="kpiAlerts" style="margin-top:10px;"></div>
+   <div class="muted" id="kpis" style="margin-top:10px;"></div>
+   <div style="margin-top:14px;">
+    <canvas id="attendanceChart"></canvas>
+    </div>
+    <div style="margin-top:14px;">
+    <canvas id="hoursChart"></canvas>
+    </div>
+    <button id="refreshKpisBtn">Refresh KPIs</button>
+    <div id="kpis" class="muted" style="margin-top:10px;"></div>
+
+
+    <h3>Today’s Time Logs</h3>
+    <button id="refreshLogsBtn">Refresh Logs</button>
+    <div id="logs" class="muted" style="margin-top:10px;"></div>
+
+    <hr />
+
+    <h3>Supervisor Daily Reports</h3>
+    <button id="refreshReportsBtn">Refresh Reports</button>
+    <div id="reports" class="muted" style="margin-top:10px;"></div>
+  </main>
+
+  <script src="/static/manager.js"></script>
+
+  <hr />
+<h3>Employee Performance (Today)</h3>
+<button id="refreshRankingBtn">Refresh Ranking</button>
+<button id="exportTodayCsvBtn">Download Today Logs CSV</button>
+<div id="ranking" class="muted" style="margin-top:10px;"></div>
+
+<hr />
+<h3>Weekly Summary</h3>
+<button id="refreshWeeklyBtn">Refresh Weekly</button>
+<button id="exportWeeklyCsvBtn">Download Weekly CSV</button>
+<div id="weekly" class="muted" style="margin-top:10px;"></div>
+
+</body>
+</html>
