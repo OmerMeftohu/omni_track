@@ -1,21 +1,11 @@
 **project structer** 
 
 omni_track/
-│
-├── app.py
-├── omni.db
-├── requirements.txt
-│
-├── static/
-│   ├── app.js
-│   ├── supervisor.js
-│   ├── manager.js
-│   └── style.css
-│
-└── templates/
-    ├── index.html
-    ├── supervisor_dashboard.html
-    ├── manager_dashboard.html
+app.py
+omni.db
+requirements.txt
+static/  - app.js  -supervisor.js  -manager.js - style.css
+templates/ - index.html - supervisor_dashboard.html -manager_dashboard.html
 
 
   **  **Security Status****
