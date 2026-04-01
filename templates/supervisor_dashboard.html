@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Supervisor Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Supervisor Dashboard</h1>
+    <p id="welcome" class="muted"></p>
+
+    <hr />
+
+    <h3>Create Employee</h3>
+    <input id="empName" placeholder="Employee full name" />
+    <button id="createEmpBtn2">Create</button>
+    <div id="createMsg" class="muted"></div>
+
+    <hr />
+
+    <h3>Activate / Deactivate</h3>
+    <input id="empCode2" maxlength="5" inputmode="numeric" placeholder="Employee ID (5 digits)" />
+    <select id="status2" style="width:100%;padding:10px;margin-top:6px;border:1px solid #ddd;border-radius:10px;">
+      <option value="ACTIVE">ACTIVE</option>
+      <option value="INACTIVE">INACTIVE</option>
+    </select>
+    <button id="setStatusBtn2">Update Status</button>
+    <div id="statusMsg2" class="muted"></div>
+
+    <hr />
+    <hr />
+    <h3>Employee List</h3>
+    <button id="refreshEmployeesBtn">Refresh Employees</button>
+    <div id="employeeList" class="muted" style="margin-top:10px;"></div>
+
+
+    <h3>Daily Report</h3>
+    <textarea id="reportText" rows="5"
+      style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;box-sizing:border-box;"
+      placeholder="Write what happened today: productivity, blockers, issues, wins..."></textarea>
+    <button id="submitReportBtn">Submit Daily Report</button>
+    <div id="reportMsg" class="muted"></div>
+
+    <hr />
+
+    <h3>Manager To-Do List</h3>
+    <button id="refreshTodosBtn">Refresh To-Dos</button>
+    <div id="todos" class="muted" style="margin-top:10px;"></div>
+
+    <hr />
+
+    <h3>Today’s Time Logs</h3>
+    <button id="refreshLogsBtn">Refresh Logs</button>
+    <div id="logs" class="muted" style="margin-top:10px;"></div>
+
+    <hr />
+
+    <h3>Change Password</h3>
+    <label>Current Password</label>
+    <input id="currentPassword" type="password" />
+
+    <label>New Password</label>
+    <input id="newPassword" type="password" />
+
+    <label>Confirm New Password</label>
+    <input id="confirmNewPassword" type="password" />
+
+    <button id="changePasswordBtn">Change Password</button>
+    <div id="changePasswordMsg" class="muted"></div>
+  </main>
+
+  <script src="/static/supervisor.js"></script>
+</body>
+</html>
+

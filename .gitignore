@@ -1,0 +1,6 @@
+omni.db
+__pycache__/
+*.db
+.venv/
+venv/
+.env

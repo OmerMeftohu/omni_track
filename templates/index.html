@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OmniTrack - Employee Time Clock</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card clock-card">
+    <div class="clock-header">
+      <h1>OmniTrack</h1>
+      <p class="muted">Employee Time Clock System</p>
+    </div>
+
+    {% if current_user.is_authenticated %}
+      <div class="welcome-section">
+        <p>Welcome back, <strong>{{ current_user.email }}</strong>!</p>
+        <div class="user-actions">
+          {% if current_user.role == 'supervisor' %}
+            <a href="{{ url_for('supervisor_dashboard') }}" class="btn btn-primary">Supervisor Dashboard</a>
+          {% elif current_user.role == 'manager' %}
+            <a href="{{ url_for('manager_dashboard') }}" class="btn btn-primary">Manager Dashboard</a>
+          {% endif %}
+          <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        </div>
+      </div>
+    {% else %}
+      <div class="admin-link">
+        <a href="{{ url_for('login') }}" class="admin-login-link">Admin Login</a>
+      </div>
+    {% endif %}
+
+    <div class="clock-section">
+      <div class="clock-input-group">
+        <label for="employeeCode" class="clock-label">Enter Your Employee ID</label>
+        <input id="employeeCode" maxlength="5" inputmode="numeric" placeholder="12345" class="clock-input" />
+        <button id="verifyBtn" class="btn btn-primary clock-btn">Verify</button>
+      </div>
+
+      <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Verifying...</p>
+      </div>
+
+      <div id="employeeInfo" class="employee-info hidden">
+        <div class="employee-details">
+          <h3 id="employeeName"></h3>
+          <p id="employeeStatus" class="status"></p>
+        </div>
+        <button id="actionBtn" class="btn btn-success action-btn hidden"></button>
+      </div>
+    </div>
+
+    <div id="msg" class="message"></div>
+
+    {% if current_user.is_authenticated and current_user.role in ['supervisor', 'manager'] %}
+    <details class="admin-section">
+      <summary class="admin-toggle">⚙️ Admin Panel</summary>
+      <div class="admin-content">
+        <div class="admin-section-item">
+          <h3>Create Employee</h3>
+          <input id="newEmpName" placeholder="Full name" class="admin-input" />
+          <button id="createEmpBtn" class="btn btn-secondary">Create</button>
+          <div id="createdEmp" class="muted"></div>
+        </div>
+
+        <div class="admin-section-item">
+          <h3>Employee Status</h3>
+          <input id="statusEmpCode" maxlength="5" inputmode="numeric" placeholder="Employee ID" class="admin-input" />
+          <select id="statusValue" class="admin-select">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+          <button id="setStatusBtn" class="btn btn-secondary">Update Status</button>
+          <div id="statusMsg" class="muted"></div>
+        </div>
+      </div>
+    </details>
+    {% endif %}
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+
