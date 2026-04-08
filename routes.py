@@ -5,7 +5,7 @@ from config import Config
 import csv
 import io
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_wtf import FlaskForm
@@ -15,6 +15,39 @@ from werkzeug.security import generate_password_hash
 from functools import wraps
 
 app = Flask(__name__)
+
+# ---------- Login rate limiting ----------
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_LOCKOUT_MINUTES = 15
+_login_attempts = defaultdict(list)   # ip -> [datetime, ...]
+
+def _check_rate_limit(ip):
+    """Return (allowed, seconds_remaining). Clears expired entries."""
+    cutoff = datetime.utcnow() - timedelta(minutes=_LOGIN_LOCKOUT_MINUTES)
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if t > cutoff]
+    if len(_login_attempts[ip]) >= _LOGIN_MAX_ATTEMPTS:
+        oldest = _login_attempts[ip][0]
+        unlock_at = oldest + timedelta(minutes=_LOGIN_LOCKOUT_MINUTES)
+        remaining = int((unlock_at - datetime.utcnow()).total_seconds())
+        return False, max(remaining, 1)
+    return True, 0
+
+def _record_failed_attempt(ip):
+    _login_attempts[ip].append(datetime.utcnow())
+
+def _clear_attempts(ip):
+    _login_attempts.pop(ip, None)
+
+
+def _validate_password_strength(password):
+    """Return an error string, or None if the password is strong enough."""
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    if not any(c.isupper() for c in password):
+        return "Password must contain at least one uppercase letter."
+    if not any(c.isdigit() for c in password):
+        return "Password must contain at least one number."
+    return None
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -49,14 +82,22 @@ def login():
         return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
+        ip = request.remote_addr
+        allowed, remaining = _check_rate_limit(ip)
+        if not allowed:
+            flash(f'Too many failed attempts. Try again in {remaining} seconds.', 'danger')
+            return render_template('login.html', form=form)
         user = verify_password(form.email.data, form.password.data)
         if user and user.role == form.role.data:
+            _clear_attempts(ip)
             login_user(user)
             update_last_login(user.id)
             log_audit(user.id, 'login', 'User logged in', request.remote_addr)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('home'))
         else:
+            _record_failed_attempt(ip)
+            log_audit(None, 'login_failed', f'Failed login for {form.email.data}', ip)
             flash('Invalid email, password, or role', 'danger')
     return render_template('login.html', form=form)
 
@@ -72,14 +113,22 @@ def logout():
 def home():
     form = LoginForm()
     if form.validate_on_submit():
+        ip = request.remote_addr
+        allowed, remaining = _check_rate_limit(ip)
+        if not allowed:
+            flash(f'Too many failed attempts. Try again in {remaining} seconds.', 'danger')
+            return render_template('index.html', form=form)
         user = verify_password(form.email.data, form.password.data)
         if user and user.role == form.role.data:
+            _clear_attempts(ip)
             login_user(user)
             update_last_login(user.id)
             log_audit(user.id, 'login', 'User logged in', request.remote_addr)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('home'))
         else:
+            _record_failed_attempt(ip)
+            log_audit(None, 'login_failed', f'Failed login for {form.email.data}', ip)
             flash('Invalid email, password, or role', 'danger')
     return render_template("index.html", form=form)
 
@@ -144,6 +193,21 @@ def public_verify():
     if emp["status"] != "ACTIVE":
         return jsonify({"ok": False, "error": "ID is inactive"}), 403
 
+    # Check for missed clock-out on a PREVIOUS day
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT work_date, clock_in_time
+        FROM time_entries
+        WHERE employee_id = ? AND work_date < ? AND clock_in_time IS NOT NULL AND clock_out_time IS NULL
+        ORDER BY work_date DESC LIMIT 1
+    """, (emp["id"], today_str()))
+    missed = cur.fetchone()
+    conn.close()
+
+    if missed:
+        record_missed_clockout(emp["id"], missed["work_date"], missed["clock_in_time"])
+
     state = employee_current_state(emp["id"])
 
     return jsonify({
@@ -177,6 +241,22 @@ def public_clock():
 # Add more routes here for supervisor, manager, etc.
 
 # ---------- Supervisor ----------
+@app.get("/api/supervisor/missed-clockouts")
+@role_required(['supervisor', 'manager'])
+def supervisor_missed_clockouts():
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT m.id, e.employee_code, e.full_name, m.work_date, m.clock_in_time, m.notified_at
+        FROM missed_clockouts m
+        JOIN employees e ON e.id = m.employee_id
+        ORDER BY m.work_date DESC, e.full_name ASC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify({"ok": True, "missed": [dict(r) for r in rows]})
+
+
 @app.get("/api/supervisor/today-logs")
 @role_required(['supervisor', 'manager'])
 def supervisor_today_logs():
@@ -232,33 +312,65 @@ def supervisor_daily_report():
 @app.get("/api/manager/export/today-logs.csv")
 @role_required(['manager'])
 def export_today_logs_csv():
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 100))
-    offset = (page - 1) * limit
+    page      = max(1, int(request.args.get('page', 1)))
+    limit     = max(1, min(10000, int(request.args.get('limit', 100))))
+    from_date = request.args.get('from_date', today_str())
+    to_date   = request.args.get('to_date',   today_str())
+    offset    = (page - 1) * limit
 
-    today = today_str()
     conn = get_db()
-    cur = conn.cursor()
+    cur  = conn.cursor()
     cur.execute("""
-        SELECT e.full_name, e.employee_code, e.status, t.clock_in_time, t.clock_out_time
-        FROM employees e
-        LEFT JOIN time_entries t
-          ON t.employee_id = e.id AND t.work_date = ?
-        ORDER BY e.full_name ASC
+        SELECT t.work_date, e.full_name, e.employee_code, e.status AS emp_status,
+               t.clock_in_time, t.clock_out_time, t.status AS entry_status
+        FROM time_entries t
+        JOIN employees e ON e.id = t.employee_id
+        WHERE t.work_date BETWEEN ? AND ?
+        ORDER BY t.work_date DESC, e.full_name ASC
         LIMIT ? OFFSET ?
-    """, (today, limit, offset))
+    """, (from_date, to_date, limit, offset))
     rows = cur.fetchall()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["date", "full_name", "employee_code", "status", "clock_in_time", "clock_out_time"])
+    writer.writerow(["work_date", "full_name", "employee_code", "employee_status",
+                     "clock_in_time", "clock_out_time", "entry_status"])
     for r in rows:
-        writer.writerow([today, r["full_name"], r["employee_code"], r["status"], r["clock_in_time"], r["clock_out_time"]])
+        writer.writerow([r["work_date"], r["full_name"], r["employee_code"], r["emp_status"],
+                         r["clock_in_time"], r["clock_out_time"], r["entry_status"]])
 
-    log_audit(current_user.id, 'export_today_logs', f'Exported page {page} with limit {limit}', request.remote_addr)
+    log_audit(current_user.id, 'export_logs_csv',
+              f'Exported {from_date} to {to_date} page {page} limit {limit}', request.remote_addr)
+    fname = f"logs_{from_date}_to_{to_date}_p{page}.csv"
     return Response(output.getvalue(), mimetype="text/csv",
-                    headers={"Content-Disposition": f"attachment; filename=today_logs_page_{page}.csv"})
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@app.get("/api/manager/export/preview")
+@role_required(['manager'])
+def manager_export_preview():
+    from_date = request.args.get('from_date', today_str())
+    to_date   = request.args.get('to_date',   today_str())
+    limit     = max(1, min(50, int(request.args.get('limit', 20))))
+
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("SELECT COUNT(*) AS cnt FROM time_entries WHERE work_date BETWEEN ? AND ?",
+                (from_date, to_date))
+    total = cur.fetchone()["cnt"]
+    cur.execute("""
+        SELECT t.work_date, e.full_name, e.employee_code,
+               t.clock_in_time, t.clock_out_time, t.status AS entry_status
+        FROM time_entries t
+        JOIN employees e ON e.id = t.employee_id
+        WHERE t.work_date BETWEEN ? AND ?
+        ORDER BY t.work_date DESC, e.full_name ASC
+        LIMIT ?
+    """, (from_date, to_date, limit))
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify({"ok": True, "total": total, "rows": [dict(r) for r in rows]})
 
 # ---------- Supervisor Account Management ----------
 @app.post("/api/supervisor/change-password")
@@ -274,8 +386,9 @@ def supervisor_change_password():
     if not new_password:
         return jsonify({"ok": False, "error": "New password is required"}), 400
 
-    if len(new_password) < 6:
-        return jsonify({"ok": False, "error": "New password must be at least 6 characters"}), 400
+    strength_error = _validate_password_strength(new_password)
+    if strength_error:
+        return jsonify({"ok": False, "error": strength_error}), 400
 
     # Verify current password
     user = verify_password(current_user.email, current_password)
@@ -331,9 +444,10 @@ def change_password():
 
     # Update password if provided
     if new_password:
-        if len(new_password) < 6:
+        strength_error = _validate_password_strength(new_password)
+        if strength_error:
             conn.close()
-            return jsonify({"ok": False, "error": "New password must be at least 6 characters"}), 400
+            return jsonify({"ok": False, "error": strength_error}), 400
         
         password_hash = generate_password_hash(new_password)
         cur.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, current_user.id))
@@ -657,6 +771,37 @@ def manager_productivity_score_timeseries():
         values.append(avg)
 
     return jsonify({"ok": True, "labels": labels, "values": values})
+
+
+@app.get("/api/supervisor/todos")
+@role_required(['supervisor', 'manager'])
+def supervisor_get_todos():
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT id, scope, title, details, due_date, status, created_at
+        FROM todos
+        WHERE status = 'OPEN'
+        ORDER BY created_at DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify({"ok": True, "todos": [dict(r) for r in rows]})
+
+
+@app.get("/api/manager/todos")
+@role_required(['manager'])
+def manager_get_todos():
+    conn = get_db()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT id, scope, title, details, due_date, status, created_at
+        FROM todos
+        ORDER BY created_at DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify({"ok": True, "todos": [dict(r) for r in rows]})
 
 if __name__ == "__main__":
     init_db()

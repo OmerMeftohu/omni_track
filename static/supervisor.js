@@ -286,6 +286,44 @@ if (path === "/supervisor/dashboard") {
       msgEl.textContent = "Server error.";
     }
   });
+
+  // Missed clock-outs
+  async function loadMissedClockouts() {
+    const el = $("missedClockouts");
+    el.textContent = "Loading...";
+    try {
+      const res  = await fetch("/api/supervisor/missed-clockouts");
+      const data = await res.json();
+      if (!data.ok) { el.textContent = data.error || "Failed."; return; }
+      if (data.missed.length === 0) {
+        el.innerHTML = "<span style='color:green;'>✅ No missed clock-outs.</span>";
+        return;
+      }
+      el.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">Employee</th>
+              <th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">Date</th>
+              <th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">Clocked In At</th>
+              <th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">First Detected</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.missed.map(m => `
+              <tr style="background:#fff8e1;">
+                <td style="padding:6px;border-bottom:1px solid #ddd;">⚠ ${m.full_name} (${m.employee_code})</td>
+                <td style="padding:6px;border-bottom:1px solid #ddd;">${m.work_date}</td>
+                <td style="padding:6px;border-bottom:1px solid #ddd;">${m.clock_in_time}</td>
+                <td style="padding:6px;border-bottom:1px solid #ddd;">${m.notified_at.slice(0,16)}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
+    } catch {
+      el.textContent = "Server error.";
+    }
+  }
+
+  $("refreshMissedBtn").addEventListener("click", loadMissedClockouts);
+  loadMissedClockouts();
 }
-
-

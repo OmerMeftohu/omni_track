@@ -1,7 +1,22 @@
 import os
+import secrets
+
+def _get_secret_key():
+    key = os.environ.get('SECRET_KEY')
+    if key:
+        return key
+    # Persist a generated key in a local file so it survives restarts
+    key_file = os.path.join(os.path.dirname(__file__), '.secret_key')
+    if os.path.exists(key_file):
+        with open(key_file, 'r') as f:
+            return f.read().strip()
+    key = secrets.token_hex(32)
+    with open(key_file, 'w') as f:
+        f.write(key)
+    return key
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key'
+    SECRET_KEY = _get_secret_key()
     DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
     DB_PATH = os.environ.get('DB_PATH', 'omni.db')
     WTF_CSRF_ENABLED = True

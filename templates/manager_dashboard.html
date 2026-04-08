@@ -173,6 +173,43 @@
         <button id="refreshSupervisorsBtn">Refresh List</button>
         <div id="supervisorsList" class="muted" style="margin-top:10px;"></div>
       </section>
+
+      <!-- Export CSV card -->
+      <section class="card">
+        <h3>Export Time Logs (CSV)</h3>
+        <p class="muted">Select a date range, preview the records, then download.</p>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-col">
+            <label>From date</label>
+            <input id="csvFromDate" type="date" />
+          </div>
+          <div class="form-col">
+            <label>To date</label>
+            <input id="csvToDate" type="date" />
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-col">
+            <label>Rows per page</label>
+            <input id="csvLimit" type="number" value="100" min="1" max="10000" />
+          </div>
+          <div class="form-col">
+            <label>Page</label>
+            <input id="csvPage" type="number" value="1" min="1" />
+          </div>
+        </div>
+        <button id="previewCsvBtn" style="margin-right:8px;">🔍 Preview</button>
+        <button id="exportCsvBtn">⬇ Download CSV</button>
+        <div id="exportCsvMsg" class="muted" style="margin-top:8px;"></div>
+        <div id="csvPreviewTable" style="margin-top:12px;overflow-x:auto;"></div>
+      </section>
+
+      <!-- Todos list card -->
+      <section class="card">
+        <h3>To-Do List (All)</h3>
+        <button id="refreshTodosListBtn">Refresh</button>
+        <div id="todosList" class="muted" style="margin-top:10px;"></div>
+      </section>
     </div>
   </div>
 

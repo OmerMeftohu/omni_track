@@ -787,3 +787,95 @@ $("refreshSupervisorsBtn").addEventListener("click", loadSupervisors);
 
 // Load supervisors on page load
 loadSupervisors();
+
+// Set default dates for CSV to today
+(function () {
+  const today = new Date().toISOString().slice(0, 10);
+  $("csvFromDate").value = today;
+  $("csvToDate").value   = today;
+})();
+
+// Export CSV
+function _csvDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  const from  = $("csvFromDate").value || today;
+  const to    = $("csvToDate").value   || today;
+  return { from, to };
+}
+
+$("previewCsvBtn").addEventListener("click", async () => {
+  const { from, to } = _csvDates();
+  const limit  = Math.min(50, parseInt($("csvLimit").value) || 20);
+  const msgEl  = $("exportCsvMsg");
+  const tblEl  = $("csvPreviewTable");
+  msgEl.textContent = "Loading preview...";
+  tblEl.innerHTML   = "";
+  try {
+    const res  = await fetch(`/api/manager/export/preview?from_date=${from}&to_date=${to}&limit=${limit}`);
+    const data = await res.json();
+    if (!data.ok) { msgEl.textContent = data.error || "Failed to load preview."; return; }
+    msgEl.textContent = `${data.total} total record(s) between ${from} and ${to}. Showing up to ${limit}.`;
+    if (data.rows.length === 0) { tblEl.innerHTML = "<p class='muted'>No records in this range.</p>"; return; }
+    tblEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+        <thead>
+          <tr>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Date</th>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Name</th>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Code</th>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Clock In</th>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Clock Out</th>
+            <th style="padding:6px;border-bottom:1px solid var(--border);text-align:left;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.rows.map(r => `
+            <tr>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${r.work_date}</td>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${escapeHtml(r.full_name)}</td>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${r.employee_code}</td>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${r.clock_in_time || "-"}</td>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${r.clock_out_time || "-"}</td>
+              <td style="padding:5px;border-bottom:1px solid var(--border);">${r.entry_status}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  } catch {
+    msgEl.textContent = "Server error during preview.";
+  }
+});
+
+$("exportCsvBtn").addEventListener("click", () => {
+  const { from, to } = _csvDates();
+  const page  = parseInt($("csvPage").value)  || 1;
+  const limit = parseInt($("csvLimit").value) || 100;
+  const msgEl = $("exportCsvMsg");
+  if (page < 1 || limit < 1) { msgEl.textContent = "Page and limit must be at least 1."; return; }
+  msgEl.textContent = "Downloading...";
+  window.location.href = `/api/manager/export/today-logs.csv?from_date=${from}&to_date=${to}&page=${page}&limit=${limit}`;
+  setTimeout(() => { msgEl.textContent = ""; }, 3000);
+});
+
+// Load all todos (manager view)
+async function loadTodosList() {
+  const listEl = $("todosList");
+  listEl.textContent = "Loading...";
+  try {
+    const res  = await fetch("/api/manager/todos");
+    const data = await res.json();
+    if (!data.ok) { listEl.textContent = data.error || "Failed."; return; }
+    if (data.todos.length === 0) { listEl.textContent = "No todos yet."; return; }
+    listEl.innerHTML = data.todos.map(t => `
+      <div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+        <strong>[${t.scope}]</strong> ${escapeHtml(t.title)}
+        <span style="float:right;font-size:0.8rem;" class="muted">${t.status}</span><br/>
+        ${t.details ? `<span class="muted">${escapeHtml(t.details)}</span><br/>` : ""}
+        <span class="muted">Due: ${t.due_date || "—"} &nbsp;|&nbsp; Created: ${t.created_at.slice(0,10)}</span>
+      </div>`).join("");
+  } catch {
+    listEl.textContent = "Server error.";
+  }
+}
+
+$("refreshTodosListBtn").addEventListener("click", loadTodosList);
+loadTodosList();

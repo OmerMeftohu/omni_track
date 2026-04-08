@@ -132,6 +132,19 @@ def init_db():
         )
     """)
 
+    # Missed clock-outs notifications table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS missed_clockouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            work_date TEXT NOT NULL,
+            clock_in_time TEXT NOT NULL,
+            notified_at TEXT NOT NULL,
+            UNIQUE(employee_id, work_date),
+            FOREIGN KEY(employee_id) REFERENCES employees(id)
+        )
+    """)
+
     # Create default users if none exist
     cur.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
@@ -150,6 +163,7 @@ def init_db():
     conn.close()
 
 def employee_current_state(employee_id: int):
+    """Return the clock state for TODAY only — previous days never block a new day."""
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -167,6 +181,20 @@ def employee_current_state(employee_id: int):
         return {"next_action": "CLOCK_OUT"}
 
     return {"next_action": "DONE_FOR_TODAY"}
+
+
+def record_missed_clockout(employee_id: int, work_date: str, clock_in_time: str):
+    """Insert a missed clock-out record (ignored if already recorded)."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT OR IGNORE INTO missed_clockouts (employee_id, work_date, clock_in_time, notified_at)
+            VALUES (?, ?, ?, ?)
+        """, (employee_id, work_date, clock_in_time, now_iso()))
+        conn.commit()
+    finally:
+        conn.close()
 
 def create_employee(full_name):
     code = generate_unique_employee_code()
