@@ -1,4 +1,5 @@
-**project structer** 
+**project structer**
+
 OmniTrack — Workforce Time Tracking System
 OmniTrack is a web-based employee time tracking application built with Python/Flask. It allows employees to clock in and out using a 5-digit employee code, while supervisors and managers monitor attendance, productivity, and daily operations through dedicated dashboards.
 
